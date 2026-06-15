@@ -173,7 +173,8 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
         match msg {
             WM_TRIGGER_HUD => {
                 ANIM_FRAME = 0;
-                let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_ALPHA);
+                // Set initial opacity to 0 using COLORKEY (Magenta 0xFF00FF) and ALPHA
+                let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0xFF00FF), 0, LWA_COLORKEY | LWA_ALPHA);
                 let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
                 let _ = InvalidateRect(hwnd, None, BOOL::from(true));
                 let _ = SetTimer(hwnd, TIMER_HUD_ID, 15, None);
@@ -193,7 +194,7 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
                         let _ = KillTimer(hwnd, TIMER_HUD_ID);
                         let _ = ShowWindow(hwnd, SW_HIDE);
                     }
-                    let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), alpha as u8, LWA_ALPHA);
+                    let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0xFF00FF), alpha as u8, LWA_COLORKEY | LWA_ALPHA);
                 }
                 LRESULT(0)
             }
@@ -205,7 +206,13 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
                 let hbitmap = CreateCompatibleBitmap(hdc, 160, 160);
                 let old_bitmap = SelectObject(hdc_mem, hbitmap);
                 
-                // Draw rounded dark gray background (macOS-like HUD styling)
+                // 1. Clear background with Magenta (0xFF00FF) to serve as transparency key
+                let key_brush = CreateSolidBrush(COLORREF(0xFF00FF));
+                let rect = RECT { left: 0, top: 0, right: 160, bottom: 160 };
+                let _ = FillRect(hdc_mem, &rect, key_brush);
+                let _ = DeleteObject(key_brush);
+                
+                // 2. Draw rounded dark gray background (macOS-like HUD styling)
                 let bg_color = COLORREF(0x1F1F1F);
                 let hbrush = CreateSolidBrush(bg_color);
                 let old_brush = SelectObject(hdc_mem, hbrush);
@@ -220,7 +227,7 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
                 let _ = SelectObject(hdc_mem, old_pen);
                 let _ = DeleteObject(hpen);
                 
-                // Draw current mic icon in the center
+                // 3. Draw current mic icon in the center
                 let is_muted = get_mic_mute();
                 let hicon = if is_muted { HICON_MUTE_HUD } else { HICON_ON_HUD };
                 let _ = DrawIconEx(
