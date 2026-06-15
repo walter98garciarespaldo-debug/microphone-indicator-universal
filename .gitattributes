@@ -1,0 +1,3 @@
+installer.nsi linguist-vendored
+build.ps1 linguist-vendored
+publish_release.py linguist-vendored

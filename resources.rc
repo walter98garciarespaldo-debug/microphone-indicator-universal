@@ -1,0 +1,39 @@
+#pragma code_page(65001) // Set UTF-8 encoding
+
+// Windows Resource Script
+
+#define VS_USER_DEFINED     100
+
+// Application Icon
+1 ICON "resources\\icon.ico"
+
+// File and Product Version Metadata
+1 VERSIONINFO
+FILEVERSION    1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK  0X3FL
+FILEFLAGS      0L
+FILEOS         0X40004L
+FILETYPE       0X1L
+FILESUBTYPE    0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0" // Language: US English (0x0409), Character Set: Unicode (1200 / 0x04B0)
+        BEGIN
+            VALUE "CompanyName",      "Walter Garc\355a"
+            VALUE "FileDescription",  "Microphone Indicator: Windows"
+            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "InternalName",     "microphone-indicator-windows"
+            VALUE "LegalCopyright",   "Copyright (C) 2026 Walter Garc\355a"
+            VALUE "OriginalFilename", "microphone-indicator-windows.exe"
+            VALUE "ProductName",      "Microphone Indicator: Windows"
+            VALUE "ProductVersion",   "1.0.0.0"
+            VALUE "Comments",         "Tray indicator to mute/unmute and show microphone status on Windows."
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
