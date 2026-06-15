@@ -63,8 +63,33 @@ fn get_mic_mute() -> bool {
 
 fn set_mic_mute(mute: bool) -> Result<()> {
     unsafe {
-        let vol = get_mic_volume_control()?;
-        vol.SetMute(BOOL::from(mute), &GUID::default())?;
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok();
+        
+        let enumerator: IMMDeviceEnumerator = CoCreateInstance(
+            &MMDeviceEnumerator,
+            None,
+            CLSCTX_ALL,
+        )?;
+        
+        // 1. Mute/Unmute the default console capture device
+        if let Ok(vol) = get_mic_volume_control() {
+            let _ = vol.SetMute(BOOL::from(mute), &GUID::default());
+        }
+        
+        // 2. Mute/Unmute ALL active capture endpoints (microphones/headsets/virtual inputs)
+        // This ensures that even if an app is bypassing the default device settings, it will still be muted.
+        if let Ok(collection) = enumerator.EnumAudioEndpoints(eCapture, DEVICE_STATE_ACTIVE) {
+            if let Ok(count) = collection.GetCount() {
+                for i in 0..count {
+                    if let Ok(device) = collection.Item(i) {
+                        if let Ok(volume) = device.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None) {
+                            let _ = volume.SetMute(BOOL::from(mute), &GUID::default());
+                        }
+                    }
+                }
+            }
+        }
+        
         Ok(())
     }
 }
@@ -206,13 +231,28 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
                 let hbitmap = CreateCompatibleBitmap(hdc, 160, 160);
                 let old_bitmap = SelectObject(hdc_mem, hbitmap);
                 
-                // 1. Fill entire canvas with Magenta (0xFF00FF) key color
+                // 1. Clear background with Magenta (0xFF00FF) to serve as transparency key
                 let key_brush = CreateSolidBrush(COLORREF(0xFF00FF));
                 let rect = RECT { left: 0, top: 0, right: 160, bottom: 160 };
                 let _ = FillRect(hdc_mem, &rect, key_brush);
                 let _ = DeleteObject(key_brush);
                 
-                // 2. Draw current mic icon directly (making the entire HUD background transparent)
+                // 2. Draw rounded dark gray background (macOS-like HUD styling)
+                let bg_color = COLORREF(0x1F1F1F);
+                let hbrush = CreateSolidBrush(bg_color);
+                let old_brush = SelectObject(hdc_mem, hbrush);
+                
+                let hpen = CreatePen(PS_NULL, 0, COLORREF(0));
+                let old_pen = SelectObject(hdc_mem, hpen);
+                
+                let _ = RoundRect(hdc_mem, 0, 0, 160, 160, 24, 24);
+                
+                let _ = SelectObject(hdc_mem, old_brush);
+                let _ = DeleteObject(hbrush);
+                let _ = SelectObject(hdc_mem, old_pen);
+                let _ = DeleteObject(hpen);
+                
+                // 3. Draw current mic icon in the center
                 let is_muted = get_mic_mute();
                 let hicon = if is_muted { HICON_MUTE_HUD } else { HICON_ON_HUD };
                 let _ = DrawIconEx(
