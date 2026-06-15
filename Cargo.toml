@@ -17,3 +17,6 @@ features = [
     "Win32_System_LibraryLoader",
     "Win32_System_Registry",
 ]
+
+[build-dependencies]
+embed-resource = "2.5"
