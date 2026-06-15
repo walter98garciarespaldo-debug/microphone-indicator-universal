@@ -7,6 +7,7 @@ use windows::Win32::Media::Audio::Endpoints::*;
 use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Registry::*;
 use windows::Win32::UI::Shell::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
@@ -20,6 +21,7 @@ const WM_USER_TRAY: u32 = WM_USER + 1;
 
 // Tray menu IDs
 const MENU_TOGGLE: usize = 201;
+const MENU_AUTOSTART: usize = 203;
 const MENU_EXIT: usize = 202;
 
 static mut HICON_ON: HICON = HICON(std::ptr::null_mut());
@@ -56,6 +58,69 @@ fn set_mic_mute(mute: bool) -> Result<()> {
     unsafe {
         let vol = get_mic_volume_control()?;
         vol.SetMute(BOOL::from(mute), &GUID::default())?;
+        Ok(())
+    }
+}
+
+fn is_autostart_enabled() -> bool {
+    unsafe {
+        let mut hkey = HKEY(std::ptr::null_mut());
+        if RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+            0,
+            KEY_READ,
+            &mut hkey,
+        ).is_ok() {
+            let mut val_type = REG_VALUE_TYPE::default();
+            let mut val_len = 0;
+            let res = RegQueryValueExW(
+                hkey,
+                w!("MicrophoneIndicator"),
+                None,
+                Some(&mut val_type),
+                None,
+                Some(&mut val_len),
+            );
+            let _ = RegCloseKey(hkey);
+            res.is_ok()
+        } else {
+            false
+        }
+    }
+}
+
+fn set_autostart(enable: bool) -> Result<()> {
+    unsafe {
+        let mut hkey = HKEY(std::ptr::null_mut());
+        RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+            0,
+            KEY_WRITE,
+            &mut hkey,
+        ).ok()?;
+        
+        if enable {
+            if let Ok(exe_path) = std::env::current_exe() {
+                let path_w: Vec<u16> = exe_path.as_os_str().encode_wide().chain(Some(0)).collect();
+                let path_bytes = std::slice::from_raw_parts(
+                    path_w.as_ptr() as *const u8,
+                    path_w.len() * 2,
+                );
+                RegSetValueExW(
+                    hkey,
+                    w!("MicrophoneIndicator"),
+                    0,
+                    REG_SZ,
+                    Some(path_bytes),
+                ).ok()?;
+            }
+        } else {
+            let _ = RegDeleteValueW(hkey, w!("MicrophoneIndicator"));
+        }
+        
+        let _ = RegCloseKey(hkey);
         Ok(())
     }
 }
@@ -164,6 +229,14 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     let label_w = toggle_label.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
                     
                     AppendMenuW(menu, MF_STRING, MENU_TOGGLE, PCWSTR::from_raw(label_w.as_ptr())).unwrap();
+                    
+                    // Add Start on Windows menu item with checkbox
+                    let autostart_label = "Start with Windows";
+                    let autostart_w = autostart_label.encode_utf16().chain(Some(0)).collect::<Vec<u16>>();
+                    let autostart_flag = if is_autostart_enabled() { MF_CHECKED } else { MF_UNCHECKED };
+                    
+                    AppendMenuW(menu, MF_STRING | autostart_flag, MENU_AUTOSTART, PCWSTR::from_raw(autostart_w.as_ptr())).unwrap();
+                    
                     AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null()).unwrap();
                     
                     let quit_label = "Quit";
@@ -194,6 +267,10 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                         let current_mute = get_mic_mute();
                         let _ = set_mic_mute(!current_mute);
                         update_tray_icon(hwnd, true);
+                    }
+                    MENU_AUTOSTART => {
+                        let current = is_autostart_enabled();
+                        let _ = set_autostart(!current);
                     }
                     MENU_EXIT => {
                         let _ = DestroyWindow(hwnd);
