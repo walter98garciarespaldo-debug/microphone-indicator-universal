@@ -206,28 +206,13 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
                 let hbitmap = CreateCompatibleBitmap(hdc, 160, 160);
                 let old_bitmap = SelectObject(hdc_mem, hbitmap);
                 
-                // 1. Clear background with Magenta (0xFF00FF) to serve as transparency key
+                // 1. Fill entire canvas with Magenta (0xFF00FF) key color
                 let key_brush = CreateSolidBrush(COLORREF(0xFF00FF));
                 let rect = RECT { left: 0, top: 0, right: 160, bottom: 160 };
                 let _ = FillRect(hdc_mem, &rect, key_brush);
                 let _ = DeleteObject(key_brush);
                 
-                // 2. Draw rounded dark gray background (macOS-like HUD styling)
-                let bg_color = COLORREF(0x1F1F1F);
-                let hbrush = CreateSolidBrush(bg_color);
-                let old_brush = SelectObject(hdc_mem, hbrush);
-                
-                let hpen = CreatePen(PS_NULL, 0, COLORREF(0));
-                let old_pen = SelectObject(hdc_mem, hpen);
-                
-                let _ = RoundRect(hdc_mem, 0, 0, 160, 160, 24, 24);
-                
-                let _ = SelectObject(hdc_mem, old_brush);
-                let _ = DeleteObject(hbrush);
-                let _ = SelectObject(hdc_mem, old_pen);
-                let _ = DeleteObject(hpen);
-                
-                // 3. Draw current mic icon in the center
+                // 2. Draw current mic icon directly (making the entire HUD background transparent)
                 let is_muted = get_mic_mute();
                 let hicon = if is_muted { HICON_MUTE_HUD } else { HICON_ON_HUD };
                 let _ = DrawIconEx(
