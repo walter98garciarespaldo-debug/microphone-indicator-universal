@@ -27,8 +27,11 @@ const MENU_TOGGLE: usize = 201;
 const MENU_AUTOSTART: usize = 203;
 const MENU_EXIT: usize = 202;
 
-static mut HICON_ON: HICON = HICON(std::ptr::null_mut());
-static mut HICON_MUTE: HICON = HICON(std::ptr::null_mut());
+static mut HICON_ON_TRAY: HICON = HICON(std::ptr::null_mut());
+static mut HICON_MUTE_TRAY: HICON = HICON(std::ptr::null_mut());
+static mut HICON_ON_HUD: HICON = HICON(std::ptr::null_mut());
+static mut HICON_MUTE_HUD: HICON = HICON(std::ptr::null_mut());
+
 static mut CURRENT_MUTE_STATE: bool = false;
 static mut HUD_HWND: HWND = HWND(std::ptr::null_mut());
 
@@ -140,7 +143,7 @@ unsafe fn update_tray_icon(hwnd: HWND, trigger_visual_hud: bool) {
         let is_muted = get_mic_mute();
         CURRENT_MUTE_STATE = is_muted;
         
-        let hicon = if is_muted { HICON_MUTE } else { HICON_ON };
+        let hicon = if is_muted { HICON_MUTE_TRAY } else { HICON_ON_TRAY };
         let tip = if is_muted { "Microphone Muted" } else { "Microphone On" };
         
         let mut nid = NOTIFYICONDATAW {
@@ -219,7 +222,7 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
                 
                 // Draw current mic icon in the center
                 let is_muted = get_mic_mute();
-                let hicon = if is_muted { HICON_MUTE } else { HICON_ON };
+                let hicon = if is_muted { HICON_MUTE_HUD } else { HICON_ON_HUD };
                 let _ = DrawIconEx(
                     hdc_mem,
                     32,
@@ -259,7 +262,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 // Add initial tray icon
                 let is_muted = get_mic_mute();
                 CURRENT_MUTE_STATE = is_muted;
-                let hicon = if is_muted { HICON_MUTE } else { HICON_ON };
+                let hicon = if is_muted { HICON_MUTE_TRAY } else { HICON_ON_TRAY };
                 let tip = if is_muted { "Microphone Muted" } else { "Microphone On" };
                 
                 let mut nid = NOTIFYICONDATAW {
@@ -389,22 +392,42 @@ fn main() -> Result<()> {
         let on_path_w: Vec<u16> = on_path.as_os_str().encode_wide().chain(Some(0)).collect();
         let mute_path_w: Vec<u16> = mute_path.as_os_str().encode_wide().chain(Some(0)).collect();
         
-        HICON_ON = HICON(LoadImageW(
+        // Load System Tray Icons (crisp 16x16)
+        HICON_ON_TRAY = HICON(LoadImageW(
             None,
             PCWSTR::from_raw(on_path_w.as_ptr()),
             IMAGE_ICON,
-            0,
-            0,
-            LR_LOADFROMFILE | LR_DEFAULTSIZE,
+            16,
+            16,
+            LR_LOADFROMFILE,
         ).unwrap().0);
         
-        HICON_MUTE = HICON(LoadImageW(
+        HICON_MUTE_TRAY = HICON(LoadImageW(
             None,
             PCWSTR::from_raw(mute_path_w.as_ptr()),
             IMAGE_ICON,
-            0,
-            0,
-            LR_LOADFROMFILE | LR_DEFAULTSIZE,
+            16,
+            16,
+            LR_LOADFROMFILE,
+        ).unwrap().0);
+
+        // Load HUD Icons (crisp 96x96)
+        HICON_ON_HUD = HICON(LoadImageW(
+            None,
+            PCWSTR::from_raw(on_path_w.as_ptr()),
+            IMAGE_ICON,
+            96,
+            96,
+            LR_LOADFROMFILE,
+        ).unwrap().0);
+        
+        HICON_MUTE_HUD = HICON(LoadImageW(
+            None,
+            PCWSTR::from_raw(mute_path_w.as_ptr()),
+            IMAGE_ICON,
+            96,
+            96,
+            LR_LOADFROMFILE,
         ).unwrap().0);
         
         // Register HUD Class
