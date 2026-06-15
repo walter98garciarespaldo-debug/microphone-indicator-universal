@@ -3,6 +3,7 @@
 use std::os::windows::ffi::OsStrExt;
 use windows::core::*;
 use windows::Win32::Foundation::*;
+use windows::Win32::Graphics::Gdi::*;
 use windows::Win32::Media::Audio::Endpoints::*;
 use windows::Win32::Media::Audio::*;
 use windows::Win32::System::Com::*;
@@ -14,10 +15,12 @@ use windows::Win32::UI::Input::KeyboardAndMouse::*;
 
 const TRAY_ICON_ID: u32 = 1;
 const TIMER_ID: usize = 101;
+const TIMER_HUD_ID: usize = 102;
 const HOTKEY_ID: i32 = 1;
 
 // Custom window messages
 const WM_USER_TRAY: u32 = WM_USER + 1;
+const WM_TRIGGER_HUD: u32 = WM_USER + 2;
 
 // Tray menu IDs
 const MENU_TOGGLE: usize = 201;
@@ -27,6 +30,7 @@ const MENU_EXIT: usize = 202;
 static mut HICON_ON: HICON = HICON(std::ptr::null_mut());
 static mut HICON_MUTE: HICON = HICON(std::ptr::null_mut());
 static mut CURRENT_MUTE_STATE: bool = false;
+static mut HUD_HWND: HWND = HWND(std::ptr::null_mut());
 
 unsafe fn get_mic_volume_control() -> Result<IAudioEndpointVolume> {
     unsafe {
@@ -131,7 +135,7 @@ fn copy_to_u16_slice(src: &str, dest: &mut [u16]) {
     dest[..len].copy_from_slice(&wide[..len]);
 }
 
-unsafe fn update_tray_icon(hwnd: HWND, show_notification: bool) {
+unsafe fn update_tray_icon(hwnd: HWND, trigger_visual_hud: bool) {
     unsafe {
         let is_muted = get_mic_mute();
         CURRENT_MUTE_STATE = is_muted;
@@ -153,23 +157,91 @@ unsafe fn update_tray_icon(hwnd: HWND, show_notification: bool) {
         
         let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
         
-        if show_notification {
-            let title = "Microphone Status";
-            let message = if is_muted { "Microphone is now MUTED" } else { "Microphone is now ACTIVE" };
-            
-            let mut nid_info = NOTIFYICONDATAW {
-                cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
-                hWnd: hwnd,
-                uID: TRAY_ICON_ID,
-                uFlags: NIF_INFO,
-                dwInfoFlags: NIIF_INFO,
-                ..Default::default()
-            };
-            
-            copy_to_u16_slice(message, &mut nid_info.szInfo);
-            copy_to_u16_slice(title, &mut nid_info.szInfoTitle);
-            
-            let _ = Shell_NotifyIconW(NIM_MODIFY, &nid_info);
+        let hud_hwnd = HUD_HWND;
+        if trigger_visual_hud && !hud_hwnd.is_invalid() {
+            let _ = SendMessageW(hud_hwnd, WM_TRIGGER_HUD, WPARAM(0), LPARAM(0));
+        }
+    }
+}
+
+unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    static mut ANIM_FRAME: i32 = 0;
+    unsafe {
+        match msg {
+            WM_TRIGGER_HUD => {
+                ANIM_FRAME = 0;
+                let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), 0, LWA_ALPHA);
+                let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
+                let _ = InvalidateRect(hwnd, None, BOOL::from(true));
+                let _ = SetTimer(hwnd, TIMER_HUD_ID, 15, None);
+                LRESULT(0)
+            }
+            WM_TIMER => {
+                if wparam.0 == TIMER_HUD_ID {
+                    ANIM_FRAME += 1;
+                    let mut alpha = 0;
+                    if ANIM_FRAME <= 5 {
+                        alpha = (ANIM_FRAME * 200) / 5;
+                    } else if ANIM_FRAME <= 15 {
+                        alpha = 200;
+                    } else if ANIM_FRAME <= 20 {
+                        alpha = ((20 - ANIM_FRAME) * 200) / 5;
+                    } else {
+                        let _ = KillTimer(hwnd, TIMER_HUD_ID);
+                        let _ = ShowWindow(hwnd, SW_HIDE);
+                    }
+                    let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), alpha as u8, LWA_ALPHA);
+                }
+                LRESULT(0)
+            }
+            WM_PAINT => {
+                let mut ps = PAINTSTRUCT::default();
+                let hdc = BeginPaint(hwnd, &mut ps);
+                
+                let hdc_mem = CreateCompatibleDC(hdc);
+                let hbitmap = CreateCompatibleBitmap(hdc, 160, 160);
+                let old_bitmap = SelectObject(hdc_mem, hbitmap);
+                
+                // Draw rounded dark gray background (macOS-like HUD styling)
+                let bg_color = COLORREF(0x1F1F1F);
+                let hbrush = CreateSolidBrush(bg_color);
+                let old_brush = SelectObject(hdc_mem, hbrush);
+                
+                let hpen = CreatePen(PS_NULL, 0, COLORREF(0));
+                let old_pen = SelectObject(hdc_mem, hpen);
+                
+                let _ = RoundRect(hdc_mem, 0, 0, 160, 160, 24, 24);
+                
+                let _ = SelectObject(hdc_mem, old_brush);
+                let _ = DeleteObject(hbrush);
+                let _ = SelectObject(hdc_mem, old_pen);
+                let _ = DeleteObject(hpen);
+                
+                // Draw current mic icon in the center
+                let is_muted = get_mic_mute();
+                let hicon = if is_muted { HICON_MUTE } else { HICON_ON };
+                let _ = DrawIconEx(
+                    hdc_mem,
+                    32,
+                    32,
+                    hicon,
+                    96,
+                    96,
+                    0,
+                    None,
+                    DI_NORMAL,
+                );
+                
+                let _ = BitBlt(hdc, 0, 0, 160, 160, hdc_mem, 0, 0, SRCCOPY);
+                
+                let _ = SelectObject(hdc_mem, old_bitmap);
+                let _ = DeleteObject(hbitmap);
+                let _ = DeleteDC(hdc_mem);
+                
+                let _ = EndPaint(hwnd, &ps);
+                LRESULT(0)
+            }
+            _ => DefWindowProcW(hwnd, msg, wparam, lparam),
         }
     }
 }
@@ -289,6 +361,10 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 let _ = Shell_NotifyIconW(NIM_DELETE, &nid);
                 let _ = UnregisterHotKey(hwnd, HOTKEY_ID);
                 let _ = KillTimer(hwnd, TIMER_ID);
+                let hud_hwnd = HUD_HWND;
+                if !hud_hwnd.is_invalid() {
+                    let _ = DestroyWindow(hud_hwnd);
+                }
                 PostQuitMessage(0);
                 LRESULT(0)
             }
@@ -331,10 +407,40 @@ fn main() -> Result<()> {
             LR_LOADFROMFILE | LR_DEFAULTSIZE,
         ).unwrap().0);
         
-        // Create window class
-        let class_name = w!("MicIndicatorClass");
+        // Register HUD Class
+        let class_name_hud = w!("MicIndicatorHUDClass");
+        let wnd_class_hud = WNDCLASSEXW {
+            cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
+            lpfnWndProc: Some(wnd_proc_hud),
+            hInstance: GetModuleHandleW(None).unwrap().into(),
+            lpszClassName: class_name_hud,
+            ..Default::default()
+        };
+        RegisterClassExW(&wnd_class_hud);
         
-        // Register window class (using RegisterClassExW as standard in modern windows)
+        // Position HUD centered on primary monitor
+        let screen_width = GetSystemMetrics(SM_CXSCREEN);
+        let screen_height = GetSystemMetrics(SM_CYSCREEN);
+        let hud_width = 160;
+        let hud_height = 160;
+        let x = (screen_width - hud_width) / 2;
+        let y = (screen_height - hud_height) / 2;
+        
+        // Create HUD Window (Layered, Topmost, Transparent to clicks, No Activate)
+        HUD_HWND = CreateWindowExW(
+            WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+            class_name_hud,
+            w!("MicIndicatorHUD"),
+            WS_POPUP,
+            x, y, hud_width, hud_height,
+            None,
+            HMENU::default(),
+            GetModuleHandleW(None).unwrap(),
+            None,
+        ).unwrap();
+        
+        // Create window class for Main Tray Window
+        let class_name = w!("MicIndicatorClass");
         let wnd_class = WNDCLASSEXW {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
             lpfnWndProc: Some(wnd_proc),
@@ -342,7 +448,6 @@ fn main() -> Result<()> {
             lpszClassName: class_name,
             ..Default::default()
         };
-        
         RegisterClassExW(&wnd_class);
         
         // Create message-only window
