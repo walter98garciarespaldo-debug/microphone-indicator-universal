@@ -1,5 +1,5 @@
 !define APPNAME "Microphone Indicator"
-!define COMPANYNAME "Walter Garcia"
+!define COMPANYNAME "Walter García"
 !define DESCRIPTION "Tray indicator to mute/unmute and show microphone status."
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 0
