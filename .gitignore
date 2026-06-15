@@ -1,2 +1,4 @@
 /target
+/releases/
+!/releases/**/*.exe
 **/*.temp*
