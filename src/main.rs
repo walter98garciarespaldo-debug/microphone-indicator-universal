@@ -198,6 +198,8 @@ unsafe extern "system" fn wnd_proc_hud(hwnd: HWND, msg: u32, wparam: WPARAM, lpa
         match msg {
             WM_TRIGGER_HUD => {
                 ANIM_FRAME = 0;
+                // Force window to topmost position to ensure it's visible
+                let _ = SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
                 // Set initial opacity to 0 using COLORKEY (Magenta 0xFF00FF) and ALPHA
                 let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0xFF00FF), 0, LWA_COLORKEY | LWA_ALPHA);
                 let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
@@ -413,53 +415,45 @@ fn main() -> Result<()> {
         // Initialize COM
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok();
         
-        // Write embedded icons to temp directory for LoadImageW to read
-        let temp_dir = std::env::temp_dir();
-        let on_path = temp_dir.join("mic_on.ico");
-        let mute_path = temp_dir.join("mic_mute.ico");
-        
-        std::fs::write(&on_path, include_bytes!("../resources/on.ico")).unwrap();
-        std::fs::write(&mute_path, include_bytes!("../resources/mute.ico")).unwrap();
-        
-        let on_path_w: Vec<u16> = on_path.as_os_str().encode_wide().chain(Some(0)).collect();
-        let mute_path_w: Vec<u16> = mute_path.as_os_str().encode_wide().chain(Some(0)).collect();
+        // Load icons from embedded resources (no temp files needed)
+        let hinst = GetModuleHandleW(None).unwrap();
         
         // Load System Tray Icons (crisp 16x16)
         HICON_ON_TRAY = HICON(LoadImageW(
-            None,
-            PCWSTR::from_raw(on_path_w.as_ptr()),
+            hinst,
+            PCWSTR(2 as _),
             IMAGE_ICON,
             16,
             16,
-            LR_LOADFROMFILE,
+            LR_DEFAULTCOLOR,
         ).unwrap().0);
         
         HICON_MUTE_TRAY = HICON(LoadImageW(
-            None,
-            PCWSTR::from_raw(mute_path_w.as_ptr()),
+            hinst,
+            PCWSTR(3 as _),
             IMAGE_ICON,
             16,
             16,
-            LR_LOADFROMFILE,
+            LR_DEFAULTCOLOR,
         ).unwrap().0);
 
         // Load HUD Icons (crisp 96x96)
         HICON_ON_HUD = HICON(LoadImageW(
-            None,
-            PCWSTR::from_raw(on_path_w.as_ptr()),
+            hinst,
+            PCWSTR(2 as _),
             IMAGE_ICON,
             96,
             96,
-            LR_LOADFROMFILE,
+            LR_DEFAULTCOLOR,
         ).unwrap().0);
         
         HICON_MUTE_HUD = HICON(LoadImageW(
-            None,
-            PCWSTR::from_raw(mute_path_w.as_ptr()),
+            hinst,
+            PCWSTR(3 as _),
             IMAGE_ICON,
             96,
             96,
-            LR_LOADFROMFILE,
+            LR_DEFAULTCOLOR,
         ).unwrap().0);
         
         // Register HUD Class

@@ -7,6 +7,10 @@
 // Application Icon
 1 ICON "resources\\icon.ico"
 
+// Microphone state icons (for tray and HUD)
+2 ICON "resources\\on.ico"
+3 ICON "resources\\mute.ico"
+
 // File and Product Version Metadata
 1 VERSIONINFO
 FILEVERSION    1,0,0,0
@@ -21,11 +25,11 @@ BEGIN
     BEGIN
         BLOCK "040904B0" // Language: US English (0x0409), Character Set: Unicode (1200 / 0x04B0)
         BEGIN
-            VALUE "CompanyName",      "Walter Garc\355a"
+            VALUE "CompanyName",      "Walter Garcia"
             VALUE "FileDescription",  "Microphone Indicator: Windows"
             VALUE "FileVersion",      "1.0.0.0"
             VALUE "InternalName",     "microphone-indicator-windows"
-            VALUE "LegalCopyright",   "Copyright (C) 2026 Walter Garc\355a"
+            VALUE "LegalCopyright",   "Copyright (C) 2026 Walter Garcia"
             VALUE "OriginalFilename", "microphone-indicator-windows.exe"
             VALUE "ProductName",      "Microphone Indicator: Windows"
             VALUE "ProductVersion",   "1.0.0.0"
