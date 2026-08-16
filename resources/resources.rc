@@ -5,11 +5,11 @@
 #define VS_USER_DEFINED     100
 
 // Application Icon
-1 ICON "resources\\icon.ico"
+1 ICON "icon.ico"
 
 // Microphone state icons (for tray and HUD)
-2 ICON "resources\\on.ico"
-3 ICON "resources\\mute.ico"
+2 ICON "on.ico"
+3 ICON "mute.ico"
 
 // File and Product Version Metadata
 1 VERSIONINFO

@@ -1,5 +1,17 @@
-/target
+# Build outputs
 /releases/
 /.nsis/
-**/*.temp*
+build/
+bin/
+out/
+.vs/
+*.obj
+*.res
+*.pdb
+*.ilk
+*.exp
+*.lib
+
+# Secrets & temporary files
 .env
+**/*.temp*

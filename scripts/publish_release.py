@@ -3,9 +3,13 @@ import urllib.request
 import json
 import sys
 
+def get_root_dir():
+    """Return the absolute path of the repository root directory."""
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 def load_env():
     """Load environment variables from a local .env file if it exists."""
-    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    env_path = os.path.join(get_root_dir(), ".env")
     if not os.path.exists(env_path):
         print("Warning: .env file not found. Falling back to system environment variables.")
         return
@@ -20,6 +24,7 @@ def load_env():
 
 def main():
     load_env()
+    root_dir = get_root_dir()
 
     token = os.getenv("GITHUB_TOKEN")
     owner = os.getenv("GITHUB_USER")
@@ -87,14 +92,13 @@ def main():
 
     # 2. Upload assets
     assets = [
-        r"releases\microphone-indicator-windows.exe",
-        r"releases\microphone-indicator-setup.exe"
+        os.path.join(root_dir, "releases", "microphone-indicator-windows.exe"),
+        os.path.join(root_dir, "releases", "microphone-indicator-setup.exe")
     ]
 
-    for asset_path in assets:
-        full_path = os.path.join(os.path.dirname(__file__), asset_path)
+    for full_path in assets:
         if not os.path.exists(full_path):
-            print(f"Warning: Asset file not found: {asset_path}. Skipping.")
+            print(f"Warning: Asset file not found: {full_path}. Skipping.")
             continue
 
         filename = os.path.basename(full_path)

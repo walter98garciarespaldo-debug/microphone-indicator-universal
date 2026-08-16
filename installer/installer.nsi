@@ -6,7 +6,7 @@
 !define VERSIONBUILD 0
 
 # Specify output installer file name and path
-OutFile "releases\microphone-indicator-setup.exe"
+OutFile "..\releases\microphone-indicator-setup.exe"
 
 # Install directory (Program Files for all-user installation)
 InstallDir "$PROGRAMFILES64\MicrophoneIndicator"
@@ -15,7 +15,7 @@ InstallDir "$PROGRAMFILES64\MicrophoneIndicator"
 RequestExecutionLevel admin
 
 # Set installer icon
-Icon "resources\icon.ico"
+Icon "..\resources\icon.ico"
 
 # UI Pages
 Page directory
@@ -26,7 +26,7 @@ Section "Install"
     SetOutPath "$INSTDIR"
     
     # Copy the main executable
-    File "releases\microphone-indicator-windows.exe"
+    File "..\releases\microphone-indicator-windows.exe"
     
     # Store installation folder in registry (Global HKLM)
     WriteRegStr HKLM "Software\MicrophoneIndicator" "Install_Dir" "$INSTDIR"

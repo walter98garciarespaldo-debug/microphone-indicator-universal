@@ -3,9 +3,9 @@
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://unlicense.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078d7.svg)](#)
 [![Latest Release](https://img.shields.io/badge/release-v1.0.0-blue.svg)](https://github.com/walter98garciarespaldo-debug/microphone-indicator-windows/releases)
-[![Language: Rust](https://img.shields.io/badge/language-Rust-e4371b.svg)](https://www.rust-lang.org/)
+[![Language: C++](https://img.shields.io/badge/language-C%2B%2B17-00599c.svg)](https://isocpp.org/)
 
-A lightweight, low-level system utility written in Rust to globally toggle active capture endpoints (microphones) using a keyboard shortcut. 
+A lightweight, low-level system utility written in native C++ (Win32 & WRL COM) to globally toggle active capture endpoints (microphones) using a keyboard shortcut.
 
 It registers a global hotkey (`Ctrl + Alt + Space`) to mute or unmute all active recording devices. To provide instant visual confirmation without the latency or display queues of standard Windows notifications, it renders a custom, screen-centered hardware-accelerated HUD overlay.
 
@@ -20,7 +20,7 @@ No attribution is required, no licensing restrictions apply, and no warranties a
 ## Features
 
 - **Global Hotkey Binding**: Binds to `Ctrl + Alt + Space` using the Windows `RegisterHotKey` API.
-- **Multi-Endpoint Control**: Enumerates all active audio capture devices via COM/WASAPI (`IMMDeviceEnumerator` and `IAudioEndpointVolume`) and toggles their mute state simultaneously.
+- **Multi-Endpoint Control**: Enumerates all active audio capture devices via COM/WASAPI (`IMMDeviceEnumerator` and `IAudioEndpointVolume`) using `Microsoft::WRL::ComPtr` (RAII) and toggles their mute state simultaneously.
 - **High-Performance HUD**: Renders a custom layered window (`WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE`) at the center of the primary display. Utilizes double-buffered GDI drawing for flicker-free rendering.
 - **Smooth Animation**: Driven by a high-resolution multimedia timer to animate alpha transparency (fade-in, hold, fade-out) over 300 milliseconds. Resets instantly if triggered repeatedly.
 - **System Tray Integration**: Displays a clean status icon in the system tray with a context menu to toggle mute status, configure autostart, or exit.
@@ -29,16 +29,31 @@ No attribution is required, no licensing restrictions apply, and no warranties a
 
 ## Directory Structure
 
-- `src/main.rs`: Core application logic, including the Win32 window message loop, hotkey management, COM volume interfaces, and the tray icon setup.
-- `resources/`: Application icons and source art.
-- `resources.rc`: Windows Resource script containing compiler instructions for version metadata and icon binding.
-- `installer.nsi`: NSIS script defining the setup configuration and registry updates for the Windows installer.
-- `build.ps1`: Automation script to compile the Rust binary in release mode and package the installer.
-- `publish_release.py`: Zero-dependency Python script to handle automated GitHub release creation and asset uploading.
+```text
+microphone-indicator-windows/
+├── installer/
+│   └── installer.nsi          # NSIS setup script and uninstaller configuration
+├── resources/
+│   ├── icon.ico               # Main application icon
+│   ├── mute.ico               # Muted microphone icon
+│   ├── on.ico                 # Active microphone icon
+│   └── resources.rc           # Windows Resource script for icons & version metadata
+├── scripts/
+│   └── publish_release.py     # GitHub release creation and asset uploader
+├── src/
+│   └── main.cpp               # Core application logic in C++17 (Win32, COM WRL, GDI HUD)
+├── vendored/
+│   └── CMakeLists.txt         # Optional multi-compiler CMake configuration
+├── .env.example               # Example environment configuration for release automation
+├── .gitattributes             # GitHub Linguist language statistics overrides
+├── .gitignore                 # Git ignore rules for MSVC, CMake and release binaries
+├── build.ps1                  # 1-click build script (MSVC release build + NSIS installer)
+└── README.md                  # Project documentation
+```
 
 ## Build Requirements
 
-1. **Rust Toolchain**: `x86_64-pc-windows-msvc`.
+1. **C++ Toolchain**: Microsoft Visual Studio / Build Tools (`cl.exe`, `rc.exe`) or MinGW GCC (`g++`, `windres`) supporting C++17.
 2. **NSIS Compiler** (Optional): Required to package the installer. The build script expects `makensis.exe` in the `.nsis/nsis-3.10/` folder.
 
 ## Build Instructions
@@ -46,9 +61,9 @@ No attribution is required, no licensing restrictions apply, and no warranties a
 Compile the release binary and build the installer by running the build script:
 
 ```powershell
-powershell -File build.ps1
+powershell -ExecutionPolicy Bypass -File build.ps1
 ```
 
 The output files will be placed in the `releases/` directory:
-- `microphone-indicator-windows.exe` (Standalone portable executable)
-- `microphone-indicator-setup.exe` (Elevated installer)
+- `microphone-indicator-windows.exe` (Standalone portable executable, ~175 KB)
+- `microphone-indicator-setup.exe` (Elevated installer, ~171 KB)
