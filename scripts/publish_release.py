@@ -90,7 +90,8 @@ def main():
 
     upload_url = release["upload_url"].split("{")[0]
 
-    # 2. Upload assets
+    # 2. Upload assets (overwriting if already exist)
+    existing_assets = release.get("assets", [])
     assets = [
         os.path.join(root_dir, "releases", "microphone-indicator-windows.exe"),
         os.path.join(root_dir, "releases", "microphone-indicator-setup.exe")
@@ -102,6 +103,26 @@ def main():
             continue
 
         filename = os.path.basename(full_path)
+
+        # If asset already exists, delete it first so we can upload the updated binary
+        for existing in existing_assets:
+            if existing.get("name") == filename:
+                del_url = f"https://api.github.com/repos/{owner}/{repo}/releases/assets/{existing['id']}"
+                del_req = urllib.request.Request(
+                    del_url,
+                    headers={
+                        "Authorization": f"token {token}",
+                        "Accept": "application/vnd.github.v3+json",
+                        "User-Agent": "Antigravity-AI-Release-Uploader"
+                    },
+                    method="DELETE"
+                )
+                try:
+                    with urllib.request.urlopen(del_req) as res:
+                        print(f"Removed previous asset '{filename}' from release.")
+                except Exception as del_err:
+                    print(f"Could not delete old asset '{filename}': {del_err}")
+
         target_url = f"{upload_url}?name={filename}"
         print(f"Uploading {filename}...")
 
@@ -124,7 +145,7 @@ def main():
             with urllib.request.urlopen(upload_req) as res:
                 print(f"Successfully uploaded {filename}!")
         except Exception as e:
-            print(f"Error uploading {filename} (might already exist in this release): {e}")
+            print(f"Error uploading {filename}: {e}")
 
 if __name__ == "__main__":
     main()
