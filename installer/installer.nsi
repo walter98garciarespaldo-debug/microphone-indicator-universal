@@ -2,7 +2,7 @@
 !define COMPANYNAME "Walter Garcia"
 !define DESCRIPTION "Tray indicator to mute/unmute and show microphone status."
 !define VERSIONMAJOR 1
-!define VERSIONMINOR 0
+!define VERSIONMINOR 1
 !define VERSIONBUILD 0
 
 # Specify output installer file name and path

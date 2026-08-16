@@ -29,7 +29,7 @@ def main():
     token = os.getenv("GITHUB_TOKEN")
     owner = os.getenv("GITHUB_USER")
     repo = os.getenv("GITHUB_REPO")
-    tag = "v1.0.0"
+    tag = sys.argv[1] if len(sys.argv) > 1 else "v1.1.0"
 
     if not token or not owner or not repo:
         print("Error: GITHUB_TOKEN, GITHUB_USER, and GITHUB_REPO must be set in your .env file or environment.")
@@ -39,10 +39,20 @@ def main():
 
     # 1. Create or retrieve the release
     url = f"https://api.github.com/repos/{owner}/{repo}/releases"
+    body_text = (
+        "## What's Changed in v1.1.0\n\n"
+        "- Migrated full codebase to native **C++17 (Win32 API & WRL COM)**.\n"
+        "- Zero external dependencies, pure Windows SDK compilation.\n"
+        "- Ultra-lightweight executable size (~174 KB) and clean resource footprint.\n"
+        "- Centered floating HUD animation with hardware-accelerated GDI.\n"
+        "- Global hotkey binding (`Ctrl + Alt + Space`) and system tray integration."
+        if tag == "v1.1.0"
+        else f"Release {tag} of Microphone Indicator for Windows."
+    )
     data = {
         "tag_name": tag,
         "name": tag,
-        "body": "Initial release of Microphone Indicator for Windows.",
+        "body": body_text,
         "draft": False,
         "prerelease": False
     }
