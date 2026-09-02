@@ -29,7 +29,7 @@ def main():
     token = os.getenv("GITHUB_TOKEN")
     owner = os.getenv("GITHUB_USER")
     repo = os.getenv("GITHUB_REPO")
-    tag = sys.argv[1] if len(sys.argv) > 1 else "v1.1.0"
+    tag = sys.argv[1] if len(sys.argv) > 1 else "v1.2.0"
 
     if not token or not owner or not repo:
         print("Error: GITHUB_TOKEN, GITHUB_USER, and GITHUB_REPO must be set in your .env file or environment.")
@@ -40,18 +40,16 @@ def main():
     # 1. Create or retrieve the release
     url = f"https://api.github.com/repos/{owner}/{repo}/releases"
     body_text = (
-        "## What's Changed in v1.1.0\n\n"
-        "- Migrated full codebase to native **C++17 (Win32 API & WRL COM)**.\n"
-        "- Zero external dependencies, pure Windows SDK compilation.\n"
-        "- Ultra-lightweight executable size (~174 KB) and clean resource footprint.\n"
-        "- Centered floating HUD animation with hardware-accelerated GDI.\n"
-        "- Global hotkey binding (`Ctrl + Alt + Space`) and system tray integration."
-        if tag == "v1.1.0"
-        else f"Release {tag} of Microphone Indicator for Windows."
+        "## What's Changed in v1.2.0 (Universal Release)\n\n"
+        "- **Cross-Platform Universal Support**: Added native **Linux** implementation (Qt6 + PulseAudio/PipeWire + Kernel evdev).\n"
+        "- **Global Hotkey (`Ctrl + Alt + Space`)**: Works across all Linux desktops (Wayland/X11) via direct low-level kernel evdev.\n"
+        "- **Hardware-accelerated HUD & Tray**: Instant visual feedback and tray status on both Windows & Linux.\n"
+        "- **Zero-polling Audio Monitor**: Subscribes directly to audio subsystem events for real-time state sync.\n"
+        "- **Universal Packaging**: Windows portable executable, Windows NSIS installer, Linux standalone binary and tarball."
     )
     data = {
         "tag_name": tag,
-        "name": tag,
+        "name": f"Microphone Indicator {tag} (Universal)",
         "body": body_text,
         "draft": False,
         "prerelease": False
@@ -100,11 +98,13 @@ def main():
 
     upload_url = release["upload_url"].split("{")[0]
 
-    # 2. Upload assets (overwriting if already exist)
+    # 2. Upload assets (Windows + Linux)
     existing_assets = release.get("assets", [])
     assets = [
         os.path.join(root_dir, "releases", "microphone-indicator-windows.exe"),
-        os.path.join(root_dir, "releases", "microphone-indicator-setup.exe")
+        os.path.join(root_dir, "releases", "microphone-indicator-setup.exe"),
+        os.path.join(root_dir, "releases", "microphone-indicator-linux"),
+        os.path.join(root_dir, "releases", "microphone-indicator-linux-x86_64.tar.gz")
     ]
 
     for full_path in assets:

@@ -1,13 +1,15 @@
-# Microphone Indicator for Windows
+# Microphone Indicator (Universal)
 
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://unlicense.org/)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078d7.svg)](#)
-[![Latest Release](https://img.shields.io/badge/release-v1.1.0-blue.svg)](https://github.com/walter98garciarespaldo-debug/microphone-indicator-windows/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0078d7.svg)](#)
+[![Latest Release](https://img.shields.io/badge/release-v1.2.0-blue.svg)](https://github.com/walter98garciarespaldo-debug/microphone-indicator-windows/releases)
 [![Language: C++](https://img.shields.io/badge/language-C%2B%2B17-00599c.svg)](https://isocpp.org/)
 
-A lightweight, low-level system utility written in native C++ (Win32 & WRL COM) to globally toggle active capture endpoints (microphones) using a keyboard shortcut.
+A lightweight, low-level system utility written in native C++ to globally toggle active capture endpoints (microphones) using a keyboard shortcut with instant visual HUD feedback across **Windows** and **Linux**.
 
-It registers a global hotkey (`Ctrl + Alt + Space`) to mute or unmute all active recording devices. To provide instant visual confirmation without the latency or display queues of standard Windows notifications, it renders a custom, screen-centered hardware-accelerated HUD overlay.
+It registers a global hotkey (`Ctrl + Alt + Space`) to mute or unmute active recording devices. To provide instant visual confirmation without the latency of standard OS notifications, it renders a custom hardware-accelerated translucent HUD overlay.
+
+---
 
 ## License & Freedom
 
@@ -17,53 +19,76 @@ You are free to copy, modify, publish, use, compile, sell, or distribute this so
 
 No attribution is required, no licensing restrictions apply, and no warranties are given. Shape it, fork it, strip it, or monetize it. It is entirely yours.
 
+---
+
 ## Features
 
-- **Global Hotkey Binding**: Binds to `Ctrl + Alt + Space` using the Windows `RegisterHotKey` API.
-- **Multi-Endpoint Control**: Enumerates all active audio capture devices via COM/WASAPI (`IMMDeviceEnumerator` and `IAudioEndpointVolume`) using `Microsoft::WRL::ComPtr` (RAII) and toggles their mute state simultaneously.
-- **High-Performance HUD**: Renders a custom layered window (`WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE`) at the center of the primary display. Utilizes double-buffered GDI drawing for flicker-free rendering.
-- **Smooth Animation**: Driven by a high-resolution multimedia timer to animate alpha transparency (fade-in, hold, fade-out) over 300 milliseconds. Resets instantly if triggered repeatedly.
-- **System Tray Integration**: Displays a clean status icon in the system tray with a context menu to toggle mute status, configure autostart, or exit.
-- **Windows Autostart Integration**: Option to automatically start the utility on user login, writing directly to the `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` registry hive (no elevation/UAC prompt required during runtime).
-- **Elevated Installer**: An NSIS-based script packages the application into an installer that targets `%PROGRAMFILES64%\MicrophoneIndicator`, registers shortcuts, and handles clean uninstallation.
+- **Cross-Platform Native C++ Core**:
+  - **Windows**: Pure Win32 API, COM/WASAPI endpoint enumeration, double-buffered GDI HUD.
+  - **Linux**: Qt6 + PulseAudio/PipeWire event subscription + direct Linux Kernel `evdev` hotkey listener.
+- **Universal Global Hotkey Binding**: Binds to `Ctrl + Alt + Space`. On Linux, it operates at the kernel event layer, seamlessly supporting both **Wayland** (KDE, GNOME) and **X11**.
+- **Zero-Polling Audio Monitoring**: Subscribes directly to audio subsystem events (`WASAPI` / `PulseAudio`) to reflect real-time mute changes from external apps or hardware buttons instantly.
+- **High-Performance Floating HUD**: Translucent, rounded on-screen display with smooth presentation for instant feedback.
+- **System Tray Integration**: Crisp status icon in the system tray / status notifier area with context menu controls.
+- **System Autostart**: Easy one-click autostart configuration for both Windows (Registry) and Linux (`~/.config/autostart`).
+
+---
 
 ## Directory Structure
 
 ```text
-microphone-indicator-windows/
+microphone-indicator/
 ├── installer/
-│   └── installer.nsi          # NSIS setup script and uninstaller configuration
+│   ├── installer.nsi          # NSIS Windows setup script and uninstaller configuration
+│   └── install-linux.sh       # Linux system installer (/opt + .desktop + symlinks)
 ├── resources/
-│   ├── icon.ico               # Main application icon
-│   ├── mute.ico               # Muted microphone icon
-│   ├── on.ico                 # Active microphone icon
-│   └── resources.rc           # Windows Resource script for icons & version metadata
+│   ├── icon.ico / on.ico / mute.ico    # Windows resource icons
+│   ├── mic-on.png / mic-mute.png       # Linux high-res PNG icons
+│   └── resources.rc                    # Windows resource compiler definition
 ├── scripts/
-│   └── publish_release.py     # GitHub release creation and asset uploader
+│   └── publish_release.py     # Universal GitHub release & asset uploader
 ├── src/
-│   └── main.cpp               # Core application logic in C++17 (Win32, COM WRL, GDI HUD)
-├── vendored/
-│   └── CMakeLists.txt         # Optional multi-compiler CMake configuration
-├── .env.example               # Example environment configuration for release automation
-├── .gitattributes             # GitHub Linguist language statistics overrides
-├── .gitignore                 # Git ignore rules for MSVC, CMake and release binaries
-├── build.ps1                  # 1-click build script (MSVC release build + NSIS installer)
+│   ├── windows/
+│   │   └── main.cpp           # Windows implementation (Win32, COM WASAPI, GDI HUD)
+│   └── linux/
+│       └── main.cpp           # Linux implementation (Qt6, PulseAudio, Kernel evdev)
+├── .env.example               # Release automation template
+├── CMakeLists.txt             # Cross-platform CMake configuration
+├── build.ps1                  # Windows build script (MSVC release build + NSIS)
+├── build.sh                   # Linux build script
 └── README.md                  # Project documentation
 ```
 
-## Build Requirements
+---
 
-1. **C++ Toolchain**: Microsoft Visual Studio / Build Tools (`cl.exe`, `rc.exe`) or MinGW GCC (`g++`, `windres`) supporting C++17.
-2. **NSIS Compiler** (Optional): Required to package the installer. The build script expects `makensis.exe` in the `.nsis/nsis-3.10/` folder.
+## Building & Installation
 
-## Build Instructions
+### Linux
+Prerequisites: `g++` (C++17), `qt6-base`, `libpulse`.
 
-Compile the release binary and build the installer by running the build script:
+1. **Compile**:
+   ```bash
+   bash build.sh
+   ```
+2. **Install to system**:
+   ```bash
+   sudo bash installer/install-linux.sh
+   ```
 
-```powershell
-powershell -ExecutionPolicy Bypass -File build.ps1
-```
+### Windows
+Prerequisites: Visual Studio C++ Build Tools (`cl.exe`, `rc.exe`) or MinGW, and NSIS (optional for installer packaging).
 
-The output files will be placed in the `releases/` directory:
-- `microphone-indicator-windows.exe` (Standalone portable executable, ~175 KB)
-- `microphone-indicator-setup.exe` (Elevated installer, ~171 KB)
+1. **Compile**:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File build.ps1
+   ```
+
+---
+
+## Release Artifacts
+
+The compiled releases are located in the `releases/` directory:
+- **Windows Standalone**: `microphone-indicator-windows.exe` (~175 KB)
+- **Windows Installer**: `microphone-indicator-setup.exe` (~171 KB)
+- **Linux Standalone Binary**: `microphone-indicator-linux` (~70 KB)
+- **Linux Tarball**: `microphone-indicator-linux-x86_64.tar.gz`
