@@ -2,7 +2,7 @@
 
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://unlicense.org/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-0078d7.svg)](#)
-[![Latest Release](https://img.shields.io/badge/release-v1.2.0-blue.svg)](https://github.com/walter98garciarespaldo-debug/microphone-indicator-windows/releases)
+[![Latest Release](https://img.shields.io/badge/release-v1.2.0-blue.svg)](https://github.com/walter98garciarespaldo-debug/microphone-indicator-universal/releases)
 [![Language: C++](https://img.shields.io/badge/language-C%2B%2B17-00599c.svg)](https://isocpp.org/)
 
 A lightweight, low-level system utility written in native C++ to globally toggle active capture endpoints (microphones) using a keyboard shortcut with instant visual HUD feedback across **Windows** and **Linux**.
