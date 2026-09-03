@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <QDateTime>
 #include <linux/input.h>
 #include <pulse/pulseaudio.h>
 #include <pulse/glib-mainloop.h>
@@ -235,6 +236,13 @@ public:
     }
 
     void toggleMute() {
+        static qint64 lastToggleTime = 0;
+        qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        if (currentTime - lastToggleTime < 5) { // 5ms debounce
+            return;
+        }
+        lastToggleTime = currentTime;
+
         bool targetMute = !m_isMuted;
         setMicMute(targetMute);
     }
@@ -328,13 +336,19 @@ private:
     // PulseAudio integration with GLib / Qt event loop (Event-driven, no polling)
     void setupPulseAudio() {
         m_paMainloop = pa_glib_mainloop_new(nullptr);
+        connectPulseAudioContext();
+    }
+
+    void connectPulseAudioContext() {
+        if (!m_paMainloop) return;
         pa_mainloop_api *api = pa_glib_mainloop_get_api(m_paMainloop);
 
         m_paContext = pa_context_new(api, "Microphone Indicator");
         pa_context_set_state_callback(m_paContext, &MicIndicator::contextStateCallback, this);
 
         if (pa_context_connect(m_paContext, nullptr, PA_CONTEXT_NOFLAGS, nullptr) < 0) {
-            std::cerr << "Failed to connect to PulseAudio context" << std::endl;
+            std::cerr << "Failed to connect to PulseAudio context. Retrying in 2s..." << std::endl;
+            QTimer::singleShot(2000, this, &MicIndicator::connectPulseAudioContext);
         }
     }
 
@@ -352,7 +366,14 @@ private:
             }
             case PA_CONTEXT_FAILED:
             case PA_CONTEXT_TERMINATED:
-                std::cerr << "PulseAudio context state failed/terminated" << std::endl;
+                std::cerr << "PulseAudio context disconnected. Reconnecting in 2s..." << std::endl;
+                if (self->m_paContext) {
+                    pa_context_unref(self->m_paContext);
+                    self->m_paContext = nullptr;
+                }
+                QTimer::singleShot(2000, self, [self]() {
+                    self->connectPulseAudioContext();
+                });
                 break;
             default:
                 break;
